@@ -1,0 +1,50 @@
+{
+  "name": "freetaxusa-mcp",
+  "version": "1.0.0",
+  "description": "MCP server for FreeTaxUSA tax filing automation via Playwright browser automation",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "freetaxusa-mcp": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsx src/index.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "postinstall": "npx playwright install chromium"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "freetaxusa",
+    "tax-filing",
+    "playwright",
+    "browser-automation",
+    "taxes",
+    "irs",
+    "claude",
+    "ai-agent"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/schwarztim/freetaxusa-mcp.git"
+  },
+  "author": "Tim Schwarz",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.1",
+    "playwright": "^1.52.0",
+    "zod": "^3.24.4"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.3",
+    "typescript": "^5.8.3",
+    "vitest": "^3.1.2",
+    "tsx": "^4.19.4"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

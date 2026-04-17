@@ -40,13 +40,27 @@ export async function authenticate(input: z.infer<typeof authenticateSchema>): P
     // Handle MFA if prompted
     const currentUrl = page.url();
     if (currentUrl.includes('mfa') || currentUrl.includes('verify') || currentUrl.includes('2fa')) {
-      // If there's a method-selection screen, click the email option first
-      const emailOption = page.getByRole('button', { name: /email/i })
-        .or(page.locator('button:has-text("email"), input[value*="email"], label:has-text("email")'))
-        .first();
-      const emailOptionVisible = await emailOption.isVisible().catch(() => false);
-      if (emailOptionVisible) {
-        await emailOption.click();
+      // If there's a method-selection screen, click the email option first.
+      // FreeTaxUSA uses a visually-hidden radio + visible label pattern —
+      // click the label (for="emailOption") rather than the hidden input,
+      // or fall back to dispatchEvent on the input itself.
+      const emailLabel = page.locator('label[for="emailOption"], label:has-text("email")').first();
+      const emailLabelVisible = await emailLabel.isVisible().catch(() => false);
+      if (emailLabelVisible) {
+        await emailLabel.click();
+      } else {
+        // Fall back: force-click the hidden radio input
+        const emailInput = page.locator('input[value="email"], input[id="emailOption"]').first();
+        const emailInputExists = await emailInput.count().then(n => n > 0).catch(() => false);
+        if (emailInputExists) {
+          await emailInput.dispatchEvent('click');
+        }
+      }
+      // Submit the method selection form if there's a continue/submit button
+      const methodSubmit = page.getByRole('button', { name: /continue|submit|send/i }).first();
+      const methodSubmitVisible = await methodSubmit.isVisible().catch(() => false);
+      if (methodSubmitVisible) {
+        await methodSubmit.click();
         await page.waitForLoadState('networkidle', { timeout: 10_000 }).catch(() => {});
         await waitForPageReady(page);
       }

@@ -1,0 +1,40 @@
+# freetaxusa-mcp backlog
+
+## Upstream PRs to submit
+
+### 1. Fix login selector for username-based accounts
+
+FreeTaxUSA uses a username field (`id="username"`, `type="text"`) rather than an email
+field. The original selector only matched email inputs.
+
+**Change:** `src/tools/session.ts` line ~27 — broaden locator to include `input[type="text"]`
+and `input[id*="user"]`. Also relax the Zod schema to accept username strings (not just
+email format).
+
+**PR title:** `fix(auth): support username-based login (FreeTaxUSA uses id="username" not email input)`
+
+---
+
+### 2. Handle MFA method-selection screen
+
+FreeTaxUSA shows a method-selection screen before the code entry field. The original code
+jumped straight to looking for the code input, missing this step.
+
+**Change:** `src/tools/session.ts` — after detecting the MFA URL, check for a visible
+"Email" button/option and click it before waiting for the code input.
+
+**PR title:** `fix(auth): click email MFA option before waiting for code input`
+
+---
+
+## How to submit
+
+```bash
+cd ~/code/freetaxusa-mcp
+# Confirm changes are on jcrben fork
+git log --oneline -5
+# Open PR against upstream
+gh pr create --repo schwarztim/freetaxusa-mcp \
+  --title "fix(auth): support username login and email MFA method selection" \
+  --body "..."
+```

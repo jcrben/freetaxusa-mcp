@@ -10,7 +10,7 @@ import type { SessionStatus } from '../types/tax.js';
 import { getPageTitle } from '../browser/forms.js';
 
 export const authenticateSchema = z.object({
-  email: z.string().email().describe('FreeTaxUSA account email'),
+  email: z.string().describe('FreeTaxUSA account username or email'),
   password: z.string().min(1).describe('FreeTaxUSA account password'),
   mfaCode: z.string().optional().describe('MFA code if prompted'),
 });
@@ -24,7 +24,7 @@ export async function authenticate(input: z.infer<typeof authenticateSchema>): P
     await waitForPageReady(page);
 
     // Fill login form
-    const emailField = page.getByLabel(/email/i).or(page.locator('input[type="email"], input[name*="email"], input[name*="user"]')).first();
+    const emailField = page.getByLabel(/email|username/i).or(page.locator('input[type="email"], input[type="text"], input[name*="email"], input[name*="user"], input[id*="user"], input[id*="email"]')).first();
     await emailField.fill(input.email);
 
     const passwordField = page.getByLabel(/password/i).or(page.locator('input[type="password"]')).first();
@@ -40,6 +40,17 @@ export async function authenticate(input: z.infer<typeof authenticateSchema>): P
     // Handle MFA if prompted
     const currentUrl = page.url();
     if (currentUrl.includes('mfa') || currentUrl.includes('verify') || currentUrl.includes('2fa')) {
+      // If there's a method-selection screen, click the email option first
+      const emailOption = page.getByRole('button', { name: /email/i })
+        .or(page.locator('button:has-text("email"), input[value*="email"], label:has-text("email")'))
+        .first();
+      const emailOptionVisible = await emailOption.isVisible().catch(() => false);
+      if (emailOptionVisible) {
+        await emailOption.click();
+        await page.waitForLoadState('networkidle', { timeout: 10_000 }).catch(() => {});
+        await waitForPageReady(page);
+      }
+
       if (!input.mfaCode) {
         return filterPII({
           authenticated: false,

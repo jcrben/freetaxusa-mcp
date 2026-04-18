@@ -1,8 +1,10 @@
 /**
- * Page tools: read_current_page, save_and_continue, navigate_section
+ * Page tools: read_current_page, save_and_continue, navigate_section, screenshot
  */
 
 import { z } from 'zod';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { getPage, isSessionExpired, extractSidFromUrl, acquirePageLock } from '../browser/context.js';
 import { readFormFields, clickSaveAndContinue, getPageTitle } from '../browser/forms.js';
 import { resolveSid, navigateToSid, waitForPageReady } from '../browser/navigation.js';
@@ -133,6 +135,22 @@ export async function navigateSection(input: { section?: string; sid?: number })
       }
       return filterPII({ success: false, error: 'navigation_failed', message });
     }
+  } finally {
+    release();
+  }
+}
+
+export const screenshotSchema = z.object({
+  path: z.string().optional().describe('Output file path (default: /tmp/freetaxusa-screenshot.png)'),
+});
+
+export async function screenshot(input: z.infer<typeof screenshotSchema>): Promise<Record<string, unknown>> {
+  const release = await acquirePageLock();
+  try {
+    const page = await getPage();
+    const outPath = input.path ?? join(tmpdir(), 'freetaxusa-screenshot.png');
+    await page.screenshot({ path: outPath, fullPage: false });
+    return { success: true, path: outPath };
   } finally {
     release();
   }

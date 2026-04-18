@@ -6,7 +6,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 
 import { authenticateSchema, authenticate, submitMfaCodeSchema, submitMfaCode, getSessionStatusSchema, getSessionStatus } from './tools/session.js';
-import { readCurrentPageSchema, readCurrentPage, saveAndContinueSchema, saveAndContinue, navigateSectionSchema, navigateSection } from './tools/page.js';
+import { readCurrentPageSchema, readCurrentPage, saveAndContinueSchema, saveAndContinue, navigateSectionSchema, navigateSection, screenshotSchema, screenshot } from './tools/page.js';
 import { fillTaxpayerInfoSchema, fillTaxpayerInfo, fillFilingStatusSchema, fillFilingStatus } from './tools/personal.js';
 import { getTaxSummarySchema, getTaxSummary, getRefundEstimateSchema, getRefundEstimate } from './tools/overview.js';
 import { fillW2IncomeSchema, fillW2Income, fill1099IncomeSchema, fill1099Income } from './tools/income.js';
@@ -72,6 +72,13 @@ export function createServer(): McpServer {
   );
 
   // Phase 1: Page tools
+  server.tool(
+    'screenshot',
+    'Take a screenshot of the current browser page and save it to a file. Returns the file path.',
+    screenshotSchema.shape,
+    wrapHandler(args => screenshot(screenshotSchema.parse(args))),
+  );
+
   server.tool(
     'read_current_page',
     'Read all form fields and their values on the current FreeTaxUSA page.',

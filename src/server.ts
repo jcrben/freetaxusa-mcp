@@ -5,7 +5,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 
-import { authenticateSchema, authenticate, getSessionStatusSchema, getSessionStatus } from './tools/session.js';
+import { authenticateSchema, authenticate, submitMfaCodeSchema, submitMfaCode, getSessionStatusSchema, getSessionStatus } from './tools/session.js';
 import { readCurrentPageSchema, readCurrentPage, saveAndContinueSchema, saveAndContinue, navigateSectionSchema, navigateSection } from './tools/page.js';
 import { fillTaxpayerInfoSchema, fillTaxpayerInfo, fillFilingStatusSchema, fillFilingStatus } from './tools/personal.js';
 import { getTaxSummarySchema, getTaxSummary, getRefundEstimateSchema, getRefundEstimate } from './tools/overview.js';
@@ -55,6 +55,13 @@ export function createServer(): McpServer {
     'Log in to FreeTaxUSA with email and password. Credentials are used once and never stored.',
     authenticateSchema.shape,
     wrapHandler(args => authenticate(authenticateSchema.parse(args))),
+  );
+
+  server.tool(
+    'submit_mfa_code',
+    'Submit the MFA verification code after authenticate() returns mfaRequired. Call authenticate first, then this.',
+    submitMfaCodeSchema.shape,
+    wrapHandler(args => submitMfaCode(submitMfaCodeSchema.parse(args))),
   );
 
   server.tool(

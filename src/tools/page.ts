@@ -180,17 +180,15 @@ export async function clickButton(input: z.infer<typeof clickButtonSchema>): Pro
     const textRe = new RegExp(input.text, 'i');
     const idx = input.index ?? 0;
 
-    // FreeTaxUSA uses Bootstrap dropdown btn-group menus for actions like Start/Edit/Delete.
-    // The visible "button" is a dropdown toggle (data-bs-toggle="dropdown"); the actual
-    // navigation item is a sibling .dropdown-item <a> that is hidden until the dropdown opens.
+    // FreeTaxUSA nav bar buttons have data-wmb attribute and contain filler text like
+    // "We'll start this soon" which can falsely match hasText:/Start/i.
+    // Exclude these nav bar dropdown toggles from the action-button logic.
     //
     // Strategy:
-    // 1. Find matching dropdown toggles (buttons with data-bs-toggle="dropdown" + matching text).
-    //    If the nth one exists, JS-click it to open the dropdown, then click the first
-    //    .dropdown-item inside the same .btn-group that also matches the text.
-    // 2. Fall back to finding regular (non-toggle) visible buttons/links and clicking them.
+    // 1. Find matching dropdown toggles (data-bs-toggle="dropdown", no data-wmb, matching text).
+    // 2. Fall back to regular visible buttons/links, using force:true to bypass nav overlay.
 
-    const toggles = page.locator('button[data-bs-toggle="dropdown"]').filter({ hasText: textRe });
+    const toggles = page.locator('button[data-bs-toggle="dropdown"]:not([data-wmb])').filter({ hasText: textRe });
     const toggleCount = await toggles.count().catch(() => 0);
 
     if (toggleCount > idx) {
@@ -246,10 +244,15 @@ export async function clickButton(input: z.infer<typeof clickButtonSchema>): Pro
         return { success: false, error: 'element_not_found', message: `No button/link with text matching "${input.text}"` };
       }
 
+      // Try normal click, then force click (bypasses nav overlay), then JS click
       try {
-        await el.click({ timeout: 5_000 });
+        await el.click({ timeout: 3_000 });
       } catch {
-        await el.evaluate((node: HTMLElement) => node.click());
+        try {
+          await el.click({ force: true, timeout: 3_000 });
+        } catch {
+          await el.evaluate((node: HTMLElement) => node.click());
+        }
       }
     }
 

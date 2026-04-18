@@ -107,6 +107,34 @@ export async function navigateSection(input: { section?: string; sid?: number })
       return { success: false, error: 'session_expired', action: 'Call authenticate to log in.' };
     }
 
+    const page = await getPage();
+
+    // FreeTaxUSA uses JavaScript-driven nav buttons (no href links).
+    // When a section name is provided, try clicking the nav button first —
+    // this avoids the server-side redirect that page.goto() triggers.
+    if (input.section) {
+      try {
+        const sectionLower = input.section.toLowerCase();
+        const navButton = page.locator('button').filter({ hasText: new RegExp(sectionLower, 'i') }).first();
+        const found = await navButton.count().then(n => n > 0).catch(() => false);
+        if (found) {
+          await navButton.click();
+          await page.waitForLoadState('networkidle', { timeout: 15_000 }).catch(() => {});
+          await waitForPageReady(page);
+          const url = page.url();
+          if (await isSessionExpired()) {
+            return { success: false, error: 'session_expired', action: 'Call authenticate to log in.' };
+          }
+          const { extractSidFromUrl } = await import('../browser/context.js');
+          const sid = extractSidFromUrl(url);
+          const title = (await page.locator('h1').first().textContent().catch(() => null)) ?? await page.title();
+          return filterPII({ success: true, navigated: true, currentPage: title, sid, url });
+        }
+      } catch {
+        // fall through to SID-based navigation
+      }
+    }
+
     const targetSid = await resolveSid(input.section, input.sid);
     if (targetSid === null) {
       return {

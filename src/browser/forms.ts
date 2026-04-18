@@ -194,20 +194,18 @@ export async function setCheckbox(page: Page, label: string, checked: boolean): 
  */
 export async function clickSaveAndContinue(page: Page): Promise<string[]> {
   try {
-    const saveButton =
-      page.getByRole('button', { name: /save and continue/i }) ??
-      page.getByRole('button', { name: /continue/i });
+    // Use .or() not ?? — getByRole() always returns a truthy Locator object
+    const saveButton = page
+      .getByRole('button', { name: /save and continue/i })
+      .or(page.getByRole('button', { name: /continue/i }))
+      .or(page.locator('input[type="submit"][value*="Continue"], button[type="submit"]'))
+      .first();
 
     await saveButton.click();
     await page.waitForLoadState('networkidle', { timeout: 10_000 }).catch(() => {});
     await page.waitForTimeout(500);
   } catch {
-    try {
-      await page.locator('input[type="submit"][value*="Continue"], button[type="submit"]').first().click();
-      await page.waitForLoadState('networkidle', { timeout: 10_000 }).catch(() => {});
-    } catch {
-      return ['Could not find Save and Continue button'];
-    }
+    return ['Could not find Save and Continue button'];
   }
 
   return await getValidationErrors(page);

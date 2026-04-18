@@ -27,6 +27,23 @@ jumped straight to looking for the code input, missing this step.
 
 ---
 
+### 3. Fix get_tax_summary / get_refund_estimate session-killing navigation
+
+Both tools call `navigateToSid(FALLBACK_SIDS.summary)` (sid=90) immediately after checking
+session validity. Navigating to sid=90 causes a redirect to `auth.freetaxusa.com`, which
+kills the session — leaving the browser in a logged-out state for all subsequent calls.
+
+**Both tools are currently disabled in server.ts** (commented out) to prevent accidental use.
+
+**Fix options:**
+- Check current page URL and only navigate if already near the summary section
+- Don't navigate at all — read the sidebar/running estimate from whatever page is open
+- Navigate to a safe intermediate SID first and confirm session is still valid before jumping to 90
+
+**Affects:** `src/tools/overview.ts`, `src/server.ts`
+
+---
+
 ## How to submit
 
 ```bash

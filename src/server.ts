@@ -112,19 +112,10 @@ export function createServer(): McpServer {
   );
 
   // Phase 1: Overview tools
-  server.tool(
-    'get_tax_summary',
-    'Get the tax return overview: refund/owed amount, AGI, filing status, completed sections.',
-    getTaxSummarySchema.shape,
-    wrapHandler(() => getTaxSummary()),
-  );
-
-  server.tool(
-    'get_refund_estimate',
-    'Get the current calculated federal and state refund or amount owed.',
-    getRefundEstimateSchema.shape,
-    wrapHandler(() => getRefundEstimate()),
-  );
+  // DISABLED: get_tax_summary navigates to sid=90 which redirects to auth and kills the session.
+  // Fix before re-enabling. See backlog.md.
+  // server.tool('get_tax_summary', ...)
+  // server.tool('get_refund_estimate', ...)
 
   // Phase 2: Income tools (stubbed)
   server.tool(

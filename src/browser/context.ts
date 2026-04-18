@@ -89,8 +89,21 @@ export async function getPage(): Promise<Page> {
  */
 export async function isSessionExpired(): Promise<boolean> {
   const page = await getPage();
-  const url = page.url();
-  return url.includes('auth.freetaxusa.com') || url.includes('/login') || url === 'about:blank';
+  let url = page.url();
+
+  // If on about:blank (e.g. after MCP server restart with existing browser profile),
+  // try navigating to BASE_URL to recover the session before declaring it expired.
+  if (url === 'about:blank') {
+    try {
+      await page.goto(BASE_URL, { waitUntil: 'domcontentloaded', timeout: 15000 });
+      url = page.url();
+    } catch {
+      // Navigation failed — treat as expired
+      return true;
+    }
+  }
+
+  return url.includes('auth.freetaxusa.com') || url.includes('/login');
 }
 
 /**

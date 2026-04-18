@@ -6,7 +6,7 @@ import { z } from 'zod';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { getPage, isSessionExpired, extractSidFromUrl, acquirePageLock } from '../browser/context.js';
-import { readFormFields, clickSaveAndContinue, getPageTitle } from '../browser/forms.js';
+import { readFormFields, clickSaveAndContinue, getPageTitle, fillFieldByLabel, selectByLabel, clickRadioByLabel, setCheckbox } from '../browser/forms.js';
 import { resolveSid, navigateToSid, waitForPageReady } from '../browser/navigation.js';
 import { filterPII } from '../security/pii-filter.js';
 
@@ -196,6 +196,47 @@ export async function clickButton(input: z.infer<typeof clickButtonSchema>): Pro
     const title = (await page.locator('h1').first().textContent().catch(() => null)) ?? await page.title();
 
     return filterPII({ success: true, clickedText: input.text, currentPage: title, sid, url });
+  } finally {
+    release();
+  }
+}
+
+export const fillFieldSchema = z.object({
+  label: z.string().describe('Accessible label of the field (partial match, case-insensitive)'),
+  value: z.string().describe('Value to enter'),
+  fieldType: z.enum(['text', 'select', 'radio', 'checkbox']).optional().default('text').describe('Field type (default: text)'),
+  checked: z.coerce.boolean().optional().describe('For checkbox: true=check, false=uncheck'),
+});
+
+export async function fillField(input: z.infer<typeof fillFieldSchema>): Promise<Record<string, unknown>> {
+  const release = await acquirePageLock();
+  try {
+    const page = await getPage();
+
+    if (await isSessionExpired()) {
+      return { success: false, error: 'session_expired', action: 'Call authenticate to log in.' };
+    }
+
+    let filled = false;
+    switch (input.fieldType) {
+      case 'select':
+        filled = await selectByLabel(page, input.label, input.value);
+        break;
+      case 'radio':
+        filled = await clickRadioByLabel(page, input.label);
+        break;
+      case 'checkbox':
+        filled = await setCheckbox(page, input.label, input.checked ?? input.value === 'true');
+        break;
+      default:
+        filled = await fillFieldByLabel(page, input.label, input.value);
+    }
+
+    if (!filled) {
+      return { success: false, error: 'field_not_found', message: `No field matching label "${input.label}"` };
+    }
+
+    return { success: true, label: input.label, value: input.value };
   } finally {
     release();
   }

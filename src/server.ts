@@ -6,7 +6,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 
 import { authenticateSchema, authenticate, submitMfaCodeSchema, submitMfaCode, getSessionStatusSchema, getSessionStatus } from './tools/session.js';
-import { readCurrentPageSchema, readCurrentPage, saveAndContinueSchema, saveAndContinue, navigateSectionSchema, navigateSection, screenshotSchema, screenshot, clickButtonSchema, clickButton } from './tools/page.js';
+import { readCurrentPageSchema, readCurrentPage, saveAndContinueSchema, saveAndContinue, navigateSectionSchema, navigateSection, screenshotSchema, screenshot, clickButtonSchema, clickButton, fillFieldSchema, fillField } from './tools/page.js';
 import { fillTaxpayerInfoSchema, fillTaxpayerInfo, fillFilingStatusSchema, fillFilingStatus } from './tools/personal.js';
 import { getTaxSummarySchema, getTaxSummary, getRefundEstimateSchema, getRefundEstimate } from './tools/overview.js';
 import { fillW2IncomeSchema, fillW2Income, fill1099IncomeSchema, fill1099Income } from './tools/income.js';
@@ -72,6 +72,13 @@ export function createServer(): McpServer {
   );
 
   // Phase 1: Page tools
+  server.tool(
+    'fill_field',
+    'Fill a form field on the current page by its visible label. Supports text inputs, selects, radios, and checkboxes.',
+    fillFieldSchema.shape,
+    wrapHandler(args => fillField(fillFieldSchema.parse(args))),
+  );
+
   server.tool(
     'click_button',
     'Click a button, link, or submit input on the current page by matching visible text.',

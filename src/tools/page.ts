@@ -168,6 +168,38 @@ export async function navigateSection(input: { section?: string; sid?: number })
   }
 }
 
+export const clickButtonSchema = z.object({
+  text: z.string().describe('Visible text of the button or link to click (partial match, case-insensitive)'),
+  index: z.coerce.number().optional().default(0).describe('0-based index when multiple elements match (default: 0 = first match)'),
+});
+
+export async function clickButton(input: z.infer<typeof clickButtonSchema>): Promise<Record<string, unknown>> {
+  const release = await acquirePageLock();
+  try {
+    const page = await getPage();
+    const el = page.locator('button, a, input[type="submit"], input[type="button"]')
+      .filter({ hasText: new RegExp(input.text, 'i') })
+      .nth(input.index ?? 0);
+
+    const found = await el.count().then(n => n > 0).catch(() => false);
+    if (!found) {
+      return { success: false, error: 'element_not_found', message: `No button/link with text matching "${input.text}"` };
+    }
+
+    await el.click();
+    await page.waitForLoadState('networkidle', { timeout: 15_000 }).catch(() => {});
+    await waitForPageReady(page);
+
+    const url = page.url();
+    const sid = extractSidFromUrl(url);
+    const title = (await page.locator('h1').first().textContent().catch(() => null)) ?? await page.title();
+
+    return filterPII({ success: true, clickedText: input.text, currentPage: title, sid, url });
+  } finally {
+    release();
+  }
+}
+
 export const screenshotSchema = z.object({
   path: z.string().optional().describe('Output file path (default: /tmp/freetaxusa-screenshot.png)'),
   fullPage: z.coerce.boolean().optional().default(true).describe('Capture full scrollable page (default: true)'),

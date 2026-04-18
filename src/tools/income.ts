@@ -9,11 +9,11 @@ import { filterPII } from '../security/pii-filter.js';
 export const fillW2IncomeSchema = z.object({
   employerEin: z.string().describe('Employer EIN (XX-XXXXXXX)'),
   employerName: z.string().describe('Employer name'),
-  wages: z.number().describe('Wages, tips, other compensation (Box 1)'),
-  federalWithheld: z.number().describe('Federal income tax withheld (Box 2)'),
-  stateWithheld: z.number().optional().describe('State income tax withheld (Box 17)'),
-  socialSecurityWages: z.number().optional().describe('Social security wages (Box 3)'),
-  medicareWages: z.number().optional().describe('Medicare wages (Box 5)'),
+  wages: z.coerce.number().describe('Wages, tips, other compensation (Box 1)'),
+  federalWithheld: z.coerce.number().describe('Federal income tax withheld (Box 2)'),
+  stateWithheld: z.coerce.number().optional().describe('State income tax withheld (Box 17)'),
+  socialSecurityWages: z.coerce.number().optional().describe('Social security wages (Box 3)'),
+  medicareWages: z.coerce.number().optional().describe('Medicare wages (Box 5)'),
   state: z.string().optional().describe('State code (Box 15)'),
   stateId: z.string().optional().describe("Employer's state ID (Box 15)"),
 });
@@ -38,8 +38,8 @@ export const fill1099IncomeSchema = z.object({
     .describe('Type of 1099 form'),
   payerName: z.string().describe('Payer name'),
   payerEin: z.string().optional().describe('Payer EIN'),
-  amount: z.number().describe('Primary amount'),
-  federalWithheld: z.number().optional().describe('Federal income tax withheld'),
+  amount: z.coerce.number().describe('Primary amount'),
+  federalWithheld: z.coerce.number().optional().describe('Federal income tax withheld'),
 });
 
 export async function fill1099Income(_input: z.infer<typeof fill1099IncomeSchema>): Promise<Record<string, unknown>> {

@@ -7,8 +7,8 @@ import { z } from 'zod';
 import { filterPII } from '../security/pii-filter.js';
 
 export const fileExtensionSchema = z.object({
-  estimatedTaxLiability: z.number().optional().describe('Estimated total tax liability'),
-  estimatedPayments: z.number().optional().describe('Estimated payments already made'),
+  estimatedTaxLiability: z.coerce.number().optional().describe('Estimated total tax liability'),
+  estimatedPayments: z.coerce.number().optional().describe('Estimated payments already made'),
 });
 
 export async function fileExtension(_input: z.infer<typeof fileExtensionSchema>): Promise<Record<string, unknown>> {

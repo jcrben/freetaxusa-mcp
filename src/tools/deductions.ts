@@ -11,7 +11,7 @@ export const fillDeductionsSchema = z.object({
   items: z.array(z.object({
     category: z.string().describe('Deduction category (e.g., medical, taxes, interest, charity)'),
     description: z.string().describe('Description'),
-    amount: z.number().describe('Amount'),
+    amount: z.coerce.number().describe('Amount'),
   })).optional().describe('Itemized deduction items (required if type is "itemized")'),
 });
 

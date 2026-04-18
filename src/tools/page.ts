@@ -24,12 +24,30 @@ export async function readCurrentPage(): Promise<Record<string, unknown>> {
     const sid = extractSidFromUrl(url);
     const fields = await readFormFields(page);
 
+    // Also capture visible buttons and navigation links so Claude can
+    // understand what actions are available on the current page.
+    const buttons = await page.evaluate(() => {
+      return Array.from(document.querySelectorAll<HTMLElement>('button, input[type="submit"], input[type="button"], a[href]'))
+        .filter(el => {
+          const rect = el.getBoundingClientRect();
+          return rect.width > 0 && rect.height > 0 && (el as HTMLElement).offsetParent !== null;
+        })
+        .map(el => ({
+          tag: el.tagName.toLowerCase(),
+          text: el.textContent?.trim() ?? (el as HTMLInputElement).value ?? '',
+          href: (el as HTMLAnchorElement).href ?? null,
+        }))
+        .filter(b => b.text.length > 0)
+        .slice(0, 30); // cap to avoid flooding
+    });
+
     return filterPII({
       success: true,
       pageTitle: title,
       sid,
       url,
       fields,
+      buttons,
     });
   } finally {
     release();

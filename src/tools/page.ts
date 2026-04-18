@@ -199,10 +199,13 @@ export async function clickButton(input: z.infer<typeof clickButtonSchema>): Pro
       await toggle.evaluate((node: HTMLElement) => node.click());
       await page.waitForTimeout(300);
 
-      // After opening, find a now-visible .dropdown-item matching the text
-      const item = page.locator('a.dropdown-item:visible, button.dropdown-item:visible')
-        .filter({ hasText: textRe })
-        .first();
+      // After opening, collect all visible dropdown items for debugging
+      await page.waitForTimeout(200);
+      const allItems = page.locator('a.dropdown-item:visible, button.dropdown-item:visible');
+      const allItemTexts = await allItems.allTextContents().catch(() => [] as string[]);
+
+      // Find matching item
+      const item = allItems.filter({ hasText: textRe }).first();
       const itemCount = await item.count().catch(() => 0);
       if (itemCount > 0) {
         try {
@@ -210,8 +213,20 @@ export async function clickButton(input: z.infer<typeof clickButtonSchema>): Pro
         } catch {
           await item.evaluate((node: HTMLElement) => node.click());
         }
+      } else {
+        // No matching item found — close dropdown and report what was available
+        await page.keyboard.press('Escape');
+        const url2 = page.url();
+        const title2 = (await page.locator('h1').first().textContent().catch(() => null)) ?? await page.title();
+        return filterPII({
+          success: false,
+          error: 'dropdown_item_not_found',
+          message: `Opened dropdown toggle for "${input.text}" but found no matching item. Available items: ${JSON.stringify(allItemTexts)}`,
+          currentPage: title2,
+          sid: extractSidFromUrl(url2),
+          url: url2,
+        });
       }
-      // If no matching dropdown item found, the toggle click itself was the action
     } else {
       // Regular button/link (not a dropdown toggle)
       const el = page.locator('button:visible, a:visible, input[type="submit"]:visible, input[type="button"]:visible')

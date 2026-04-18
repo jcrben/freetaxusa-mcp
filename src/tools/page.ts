@@ -321,6 +321,53 @@ export async function fillField(input: z.infer<typeof fillFieldSchema>): Promise
   }
 }
 
+export const evaluateJsSchema = z.object({
+  script: z.string().describe(
+    'JavaScript expression or function body to execute in the page context. ' +
+    'Use a function body (return ...) for multi-statement scripts, or a plain expression. ' +
+    'The result must be JSON-serializable. Example: "document.title" or ' +
+    '"(() => { const b = document.querySelector(\'button\'); return b?.textContent; })()"'
+  ),
+  waitForNavigation: z.coerce.boolean().optional().default(false).describe(
+    'If true, wait for page navigation after executing the script (useful when the script triggers a click)'
+  ),
+});
+
+export async function evaluateJs(input: z.infer<typeof evaluateJsSchema>): Promise<Record<string, unknown>> {
+  const release = await acquirePageLock();
+  try {
+    const page = await getPage();
+
+    if (await isSessionExpired()) {
+      return { success: false, error: 'session_expired', action: 'Call authenticate to log in.' };
+    }
+
+    let result: unknown;
+    try {
+      // Wrap bare expressions in an arrow fn so multi-statement scripts work too
+      const wrapped = input.script.trim().startsWith('(') || input.script.trim().startsWith('return') || input.script.includes(';')
+        ? `(() => { ${input.script} })()`
+        : input.script;
+      result = await page.evaluate(wrapped);
+    } catch (err) {
+      return { success: false, error: 'evaluation_error', message: String(err) };
+    }
+
+    if (input.waitForNavigation) {
+      await page.waitForLoadState('networkidle', { timeout: 15_000 }).catch(() => {});
+      await waitForPageReady(page);
+    }
+
+    const url = page.url();
+    const sid = extractSidFromUrl(url);
+    const title = (await page.locator('h1').first().textContent().catch(() => null)) ?? await page.title();
+
+    return filterPII({ success: true, result, currentPage: title, sid, url });
+  } finally {
+    release();
+  }
+}
+
 export const screenshotSchema = z.object({
   path: z.string().optional().describe('Output file path (default: /tmp/freetaxusa-screenshot.png)'),
   fullPage: z.coerce.boolean().optional().default(true).describe('Capture full scrollable page (default: true)'),

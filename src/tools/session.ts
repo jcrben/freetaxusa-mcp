@@ -73,7 +73,8 @@ export async function authenticate(input: z.infer<typeof authenticateSchema>): P
         });
       }
 
-      const mfaField = page.getByLabel(/code|verification/i).or(page.locator('input[name*="code"], input[name*="mfa"]')).first();
+      // Target the actual text input — avoid the FAQ help button that also has aria-label containing "code"
+      const mfaField = page.locator('input[type="text"], input[type="number"], input[type="tel"]').first();
       await mfaField.fill(input.mfaCode);
 
       const verifyButton = page.getByRole('button', { name: /verify|submit|continue/i }).first();

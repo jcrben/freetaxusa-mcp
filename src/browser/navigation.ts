@@ -99,13 +99,28 @@ export async function resolveSid(section?: string, sid?: number): Promise<number
 
 /**
  * Navigate to a specific SID page.
+ * Prefers clicking the sidebar link (avoids PRMPT-mode redirect) and falls
+ * back to a direct goto only when no in-page link is found.
  * Returns the page title and actual SID after navigation.
  */
 export async function navigateToSid(sid: number): Promise<{ title: string; sid: number; url: string }> {
   const page = await getPage();
-  const url = `${BASE_URL}?sid=${sid}`;
 
-  await page.goto(url, { waitUntil: 'networkidle', timeout: 15_000 });
+  // Try clicking the in-page sidebar link first — avoids PRMPT-mode redirect
+  try {
+    const link = page.locator(`a[href*="sid=${sid}"]`).first();
+    const exists = await link.count().then(n => n > 0).catch(() => false);
+    if (exists) {
+      await link.click();
+      await page.waitForLoadState('networkidle', { timeout: 15_000 }).catch(() => {});
+    } else {
+      throw new Error('no_sidebar_link');
+    }
+  } catch {
+    // Fall back to direct navigation
+    const url = `${BASE_URL}?sid=${sid}`;
+    await page.goto(url, { waitUntil: 'networkidle', timeout: 15_000 });
+  }
 
   // Check for session expiry after navigation
   if (await isSessionExpired()) {

@@ -75,7 +75,7 @@ export async function saveAndContinue(): Promise<Record<string, unknown>> {
 
 export const navigateSectionSchema = z.object({
   section: z.string().optional().describe('Section name (e.g., "income", "deductions", "personal info")'),
-  sid: z.number().optional().describe('Direct SID number to navigate to'),
+  sid: z.coerce.number().optional().describe('Direct SID number to navigate to'),
 }).refine(data => data.section || data.sid !== undefined, {
   message: 'Either section name or sid must be provided',
 });

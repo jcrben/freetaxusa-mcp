@@ -91,7 +91,7 @@ export function createServer(): McpServer {
     'Jump to a specific tax section by name (e.g., "income", "deductions") or SID number.',
     {
       section: z.string().optional().describe('Section name (e.g., "income", "deductions", "personal info")'),
-      sid: z.number().optional().describe('Direct SID number to navigate to'),
+      sid: z.coerce.number().optional().describe('Direct SID number to navigate to'),
     },
     wrapHandler(args => navigateSection(args as { section?: string; sid?: number })),
   );

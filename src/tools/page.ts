@@ -40,7 +40,7 @@ export async function readCurrentPage(): Promise<Record<string, unknown>> {
           href: (el as HTMLAnchorElement).href ?? null,
         }))
         .filter(b => b.text.length > 0)
-        .slice(0, 30); // cap to avoid flooding
+        .slice(0, 100); // cap to avoid flooding
     });
 
     return filterPII({
@@ -177,7 +177,8 @@ export async function clickButton(input: z.infer<typeof clickButtonSchema>): Pro
   const release = await acquirePageLock();
   try {
     const page = await getPage();
-    const el = page.locator('button, a, input[type="submit"], input[type="button"]')
+    // :visible ensures we skip hidden dropdown items that share button text
+    const el = page.locator('button:visible, a:visible, input[type="submit"]:visible, input[type="button"]:visible')
       .filter({ hasText: new RegExp(input.text, 'i') })
       .nth(input.index ?? 0);
 

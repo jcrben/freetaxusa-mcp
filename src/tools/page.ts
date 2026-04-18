@@ -177,22 +177,59 @@ export async function clickButton(input: z.infer<typeof clickButtonSchema>): Pro
   const release = await acquirePageLock();
   try {
     const page = await getPage();
-    // :visible ensures we skip hidden dropdown items that share button text
-    const el = page.locator('button:visible, a:visible, input[type="submit"]:visible, input[type="button"]:visible')
-      .filter({ hasText: new RegExp(input.text, 'i') })
-      .nth(input.index ?? 0);
+    const textRe = new RegExp(input.text, 'i');
+    const idx = input.index ?? 0;
 
-    const found = await el.count().then(n => n > 0).catch(() => false);
-    if (!found) {
-      return { success: false, error: 'element_not_found', message: `No button/link with text matching "${input.text}"` };
+    // FreeTaxUSA uses Bootstrap dropdown btn-group menus for actions like Start/Edit/Delete.
+    // The visible "button" is a dropdown toggle (data-bs-toggle="dropdown"); the actual
+    // navigation item is a sibling .dropdown-item <a> that is hidden until the dropdown opens.
+    //
+    // Strategy:
+    // 1. Find matching dropdown toggles (buttons with data-bs-toggle="dropdown" + matching text).
+    //    If the nth one exists, JS-click it to open the dropdown, then click the first
+    //    .dropdown-item inside the same .btn-group that also matches the text.
+    // 2. Fall back to finding regular (non-toggle) visible buttons/links and clicking them.
+
+    const toggles = page.locator('button[data-bs-toggle="dropdown"]').filter({ hasText: textRe });
+    const toggleCount = await toggles.count().catch(() => 0);
+
+    if (toggleCount > idx) {
+      const toggle = toggles.nth(idx);
+      // Open the dropdown via JS click (bypasses any overlay interception)
+      await toggle.evaluate((node: HTMLElement) => node.click());
+      await page.waitForTimeout(300);
+
+      // After opening, find a now-visible .dropdown-item matching the text
+      const item = page.locator('a.dropdown-item:visible, button.dropdown-item:visible')
+        .filter({ hasText: textRe })
+        .first();
+      const itemCount = await item.count().catch(() => 0);
+      if (itemCount > 0) {
+        try {
+          await item.click({ timeout: 5_000 });
+        } catch {
+          await item.evaluate((node: HTMLElement) => node.click());
+        }
+      }
+      // If no matching dropdown item found, the toggle click itself was the action
+    } else {
+      // Regular button/link (not a dropdown toggle)
+      const el = page.locator('button:visible, a:visible, input[type="submit"]:visible, input[type="button"]:visible')
+        .filter({ hasText: textRe })
+        .nth(idx);
+
+      const found = await el.count().then(n => n > 0).catch(() => false);
+      if (!found) {
+        return { success: false, error: 'element_not_found', message: `No button/link with text matching "${input.text}"` };
+      }
+
+      try {
+        await el.click({ timeout: 5_000 });
+      } catch {
+        await el.evaluate((node: HTMLElement) => node.click());
+      }
     }
 
-    // Try normal click first; fall back to JS click if intercepted by an overlay
-    try {
-      await el.click({ timeout: 5_000 });
-    } catch {
-      await el.evaluate((node: HTMLElement) => node.click());
-    }
     await page.waitForLoadState('networkidle', { timeout: 15_000 }).catch(() => {});
     await waitForPageReady(page);
 

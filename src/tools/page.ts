@@ -170,6 +170,7 @@ export async function navigateSection(input: { section?: string; sid?: number })
 
 export const screenshotSchema = z.object({
   path: z.string().optional().describe('Output file path (default: /tmp/freetaxusa-screenshot.png)'),
+  fullPage: z.coerce.boolean().optional().default(true).describe('Capture full scrollable page (default: true)'),
 });
 
 export async function screenshot(input: z.infer<typeof screenshotSchema>): Promise<Record<string, unknown>> {
@@ -177,7 +178,7 @@ export async function screenshot(input: z.infer<typeof screenshotSchema>): Promi
   try {
     const page = await getPage();
     const outPath = input.path ?? join(tmpdir(), 'freetaxusa-screenshot.png');
-    await page.screenshot({ path: outPath, fullPage: false });
+    await page.screenshot({ path: outPath, fullPage: input.fullPage ?? true });
     return { success: true, path: outPath };
   } finally {
     release();

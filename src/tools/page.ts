@@ -187,7 +187,12 @@ export async function clickButton(input: z.infer<typeof clickButtonSchema>): Pro
       return { success: false, error: 'element_not_found', message: `No button/link with text matching "${input.text}"` };
     }
 
-    await el.click();
+    // Try normal click first; fall back to JS click if intercepted by an overlay
+    try {
+      await el.click({ timeout: 5_000 });
+    } catch {
+      await el.evaluate((node: HTMLElement) => node.click());
+    }
     await page.waitForLoadState('networkidle', { timeout: 15_000 }).catch(() => {});
     await waitForPageReady(page);
 

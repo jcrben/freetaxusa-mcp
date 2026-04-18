@@ -8,6 +8,7 @@ import { join } from 'node:path';
 import { getPage, isSessionExpired, extractSidFromUrl, acquirePageLock } from '../browser/context.js';
 import { readFormFields, clickSaveAndContinue, getPageTitle, fillFieldByLabel, selectByLabel, clickRadioByLabel, setCheckbox } from '../browser/forms.js';
 import { resolveSid, navigateToSid, waitForPageReady } from '../browser/navigation.js';
+import { getPageContext } from '../browser/page-context.js';
 import { filterPII } from '../security/pii-filter.js';
 
 export const readCurrentPageSchema = z.object({});
@@ -43,11 +44,15 @@ export async function readCurrentPage(): Promise<Record<string, unknown>> {
         .slice(0, 100); // cap to avoid flooding
     });
 
+    const pageContext = getPageContext(title, sid);
+
     return filterPII({
       success: true,
       pageTitle: title,
       sid,
       url,
+      pageDescription: pageContext.description,
+      suggestedTools: pageContext.tools,
       fields,
       buttons,
     });

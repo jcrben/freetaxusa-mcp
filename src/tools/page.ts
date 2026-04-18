@@ -199,10 +199,18 @@ export async function clickButton(input: z.infer<typeof clickButtonSchema>): Pro
       await toggle.evaluate((node: HTMLElement) => node.click());
       await page.waitForTimeout(300);
 
-      // After opening, collect all visible dropdown items for debugging
-      await page.waitForTimeout(200);
-      const allItems = page.locator('a.dropdown-item:visible, button.dropdown-item:visible');
+      // After opening, collect all newly-visible links/buttons for debugging
+      // FreeTaxUSA may not use .dropdown-item class; search broadly
+      const allItems = page.locator('.dropdown-menu:visible a:visible, .dropdown-menu:visible button:visible, a.dropdown-item:visible, button.dropdown-item:visible');
       const allItemTexts = await allItems.allTextContents().catch(() => [] as string[]);
+
+      // Also grab the toggle button's aria/data context for debugging
+      const toggleDebug = await toggle.evaluate((node: HTMLElement) => ({
+        text: node.textContent?.trim(),
+        class: node.className,
+        dmwb: node.getAttribute('data-wmb'),
+        parentHTML: node.parentElement?.outerHTML?.substring(0, 600),
+      })).catch(() => null);
 
       // Find matching item
       const item = allItems.filter({ hasText: textRe }).first();
@@ -221,7 +229,7 @@ export async function clickButton(input: z.infer<typeof clickButtonSchema>): Pro
         return filterPII({
           success: false,
           error: 'dropdown_item_not_found',
-          message: `Opened dropdown toggle for "${input.text}" but found no matching item. Available items: ${JSON.stringify(allItemTexts)}`,
+          message: `Opened dropdown toggle for "${input.text}" but found no matching item. Available items: ${JSON.stringify(allItemTexts)}. Toggle debug: ${JSON.stringify(toggleDebug)}`,
           currentPage: title2,
           sid: extractSidFromUrl(url2),
           url: url2,

@@ -20,49 +20,58 @@ export async function authenticate(input: z.infer<typeof authenticateSchema>): P
   try {
     const page = await getPage();
 
-    await page.goto(AUTH_URL, { waitUntil: 'networkidle', timeout: 20_000 });
-    await waitForPageReady(page);
+    const currentUrl = page.url();
+    const alreadyOnVerification = currentUrl.includes('EmailVerification') || currentUrl.includes('mfa') || currentUrl.includes('2fa');
 
-    // Fill login form
-    const emailField = page.getByLabel(/email|username/i).or(page.locator('input[type="email"], input[type="text"], input[name*="email"], input[name*="user"], input[id*="user"], input[id*="email"]')).first();
-    await emailField.fill(input.email);
+    // If we're already on the code-entry screen and the caller is providing the MFA code,
+    // skip re-navigating (which would trigger a brand-new code email).
+    if (!(alreadyOnVerification && input.mfaCode)) {
+      await page.goto(AUTH_URL, { waitUntil: 'networkidle', timeout: 20_000 });
+      await waitForPageReady(page);
 
-    const passwordField = page.getByLabel(/password/i).or(page.locator('input[type="password"]')).first();
-    await passwordField.fill(input.password);
+      // Fill login form
+      const emailField = page.getByLabel(/email|username/i).or(page.locator('input[type="email"], input[type="text"], input[name*="email"], input[name*="user"], input[id*="user"], input[id*="email"]')).first();
+      await emailField.fill(input.email);
 
-    // Click sign in
-    const signInButton = page.getByRole('button', { name: /sign in|log in|continue/i }).first();
-    await signInButton.click();
+      const passwordField = page.getByLabel(/password/i).or(page.locator('input[type="password"]')).first();
+      await passwordField.fill(input.password);
 
-    await page.waitForLoadState('networkidle', { timeout: 15_000 }).catch(() => {});
-    await waitForPageReady(page);
+      // Click sign in
+      const signInButton = page.getByRole('button', { name: /sign in|log in|continue/i }).first();
+      await signInButton.click();
+
+      await page.waitForLoadState('networkidle', { timeout: 15_000 }).catch(() => {});
+      await waitForPageReady(page);
+    }
 
     // Handle MFA if prompted
-    const currentUrl = page.url();
-    if (currentUrl.includes('mfa') || currentUrl.includes('verify') || currentUrl.includes('2fa')) {
-      // If there's a method-selection screen, click the email option first.
-      // FreeTaxUSA uses a visually-hidden radio + visible label pattern —
-      // click the label (for="emailOption") rather than the hidden input,
-      // or fall back to dispatchEvent on the input itself.
-      const emailLabel = page.locator('label[for="emailOption"], label:has-text("email")').first();
-      const emailLabelVisible = await emailLabel.isVisible().catch(() => false);
-      if (emailLabelVisible) {
-        await emailLabel.click();
-      } else {
-        // Fall back: force-click the hidden radio input
-        const emailInput = page.locator('input[value="email"], input[id="emailOption"]').first();
-        const emailInputExists = await emailInput.count().then(n => n > 0).catch(() => false);
-        if (emailInputExists) {
-          await emailInput.dispatchEvent('click');
+    const urlAfterLogin = page.url();
+    if (urlAfterLogin.includes('mfa') || urlAfterLogin.includes('verify') || urlAfterLogin.includes('2fa') || urlAfterLogin.includes('EmailVerification')) {
+      if (!alreadyOnVerification || !input.mfaCode) {
+        // If there's a method-selection screen, click the email option first.
+        // FreeTaxUSA uses a visually-hidden radio + visible label pattern —
+        // click the label (for="emailOption") rather than the hidden input,
+        // or fall back to dispatchEvent on the input itself.
+        const emailLabel = page.locator('label[for="emailOption"], label:has-text("email")').first();
+        const emailLabelVisible = await emailLabel.isVisible().catch(() => false);
+        if (emailLabelVisible) {
+          await emailLabel.click();
+        } else {
+          // Fall back: force-click the hidden radio input
+          const emailInput = page.locator('input[value="email"], input[id="emailOption"]').first();
+          const emailInputExists = await emailInput.count().then(n => n > 0).catch(() => false);
+          if (emailInputExists) {
+            await emailInput.dispatchEvent('click');
+          }
         }
-      }
-      // Submit the method selection form if there's a continue/submit button
-      const methodSubmit = page.getByRole('button', { name: /continue|submit|send/i }).first();
-      const methodSubmitVisible = await methodSubmit.isVisible().catch(() => false);
-      if (methodSubmitVisible) {
-        await methodSubmit.click();
-        await page.waitForLoadState('networkidle', { timeout: 10_000 }).catch(() => {});
-        await waitForPageReady(page);
+        // Submit the method selection form if there's a continue/submit button
+        const methodSubmit = page.getByRole('button', { name: /continue|submit|send/i }).first();
+        const methodSubmitVisible = await methodSubmit.isVisible().catch(() => false);
+        if (methodSubmitVisible) {
+          await methodSubmit.click();
+          await page.waitForLoadState('networkidle', { timeout: 10_000 }).catch(() => {});
+          await waitForPageReady(page);
+        }
       }
 
       if (!input.mfaCode) {

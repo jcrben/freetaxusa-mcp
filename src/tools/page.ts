@@ -244,15 +244,26 @@ export async function clickButton(input: z.infer<typeof clickButtonSchema>): Pro
         return { success: false, error: 'element_not_found', message: `No button/link with text matching "${input.text}"` };
       }
 
-      // Try normal click, then force click (bypasses nav overlay), then JS click
+      // Scroll element into view accounting for sticky nav (~60px tall), then click.
+      // Falls back to dispatchEvent sequence (works with React synthetic events).
+      await el.evaluate((node: HTMLElement) => {
+        node.scrollIntoView({ block: 'center' });
+        // Extra scroll to clear the sticky top nav bar
+        window.scrollBy(0, -80);
+      });
+      await page.waitForTimeout(200);
       try {
         await el.click({ timeout: 3_000 });
       } catch {
-        try {
-          await el.click({ force: true, timeout: 3_000 });
-        } catch {
-          await el.evaluate((node: HTMLElement) => node.click());
-        }
+        // dispatchEvent approach works with React synthetic events where node.click() may not
+        await el.evaluate((node: HTMLElement) => {
+          const rect = node.getBoundingClientRect();
+          const cx = rect.left + rect.width / 2;
+          const cy = rect.top + rect.height / 2;
+          ['mousedown', 'mouseup', 'click'].forEach(type => {
+            node.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true, clientX: cx, clientY: cy }));
+          });
+        });
       }
     }
 

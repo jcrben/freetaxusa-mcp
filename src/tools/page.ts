@@ -373,6 +373,112 @@ export async function evaluateJs(input: z.infer<typeof evaluateJsSchema>): Promi
   }
 }
 
+export const deleteInvestmentEntrySchema = z.object({
+  payer: z.string().describe('Payer name to match (partial, case-insensitive) — e.g. "ALLY BANK", "National Financial Services LL"'),
+  entryType: z.string().optional().describe('Optional: entry type to match within the payer section, e.g. "Interest", "Dividends", "Stock Sales". Matches first entry if omitted.'),
+  entryIndex: z.coerce.number().optional().default(0).describe('0-based index when multiple entries of the same type exist under the payer (default: 0)'),
+});
+
+export async function deleteInvestmentEntry(input: z.infer<typeof deleteInvestmentEntrySchema>): Promise<Record<string, unknown>> {
+  const release = await acquirePageLock();
+  try {
+    const page = await getPage();
+
+    if (await isSessionExpired()) {
+      return { success: false, error: 'session_expired', action: 'Call authenticate to log in.' };
+    }
+
+    const payerRe = new RegExp(input.payer, 'i');
+    const typeRe = input.entryType ? new RegExp(input.entryType, 'i') : null;
+    const idx = input.entryIndex ?? 0;
+
+    // Step 1: Find the accordion section for this payer
+    const result = await page.evaluate(({ payerPattern, typePattern, entryIdx }: { payerPattern: string; typePattern: string | null; entryIdx: number }) => {
+      const payerRe = new RegExp(payerPattern, 'i');
+      const typeRe = typePattern ? new RegExp(typePattern, 'i') : null;
+
+      // Find the accordion header link matching the payer
+      const headers = Array.from(document.querySelectorAll<HTMLAnchorElement>('a[href*="accordion"]'));
+      const header = headers.find(h => payerRe.test(h.textContent ?? ''));
+      if (!header) return { error: `No payer section found matching "${payerPattern}"` };
+
+      const sectionId = header.getAttribute('href')?.replace('#', '');
+      const section = sectionId ? document.getElementById(sectionId) : null;
+      if (!section) return { error: `Accordion section not found for "${header.textContent?.trim()}"` };
+
+      // Find candidate entries — both .record-card (started entries) and unstarted action rows
+      const allRows = Array.from(section.querySelectorAll<HTMLElement>('.record-card, .d-flex.flex-column.flex-lg-row'));
+      const candidates = typeRe
+        ? allRows.filter(row => typeRe.test(row.querySelector('.card-header-text')?.textContent ?? row.querySelector('.info')?.textContent ?? ''))
+        : allRows;
+
+      if (candidates.length === 0) return { error: `No entries found${typeRe ? ` matching type "${typePattern}"` : ''} in payer section "${header.textContent?.trim()}"` };
+
+      const target = candidates[entryIdx];
+      if (!target) return { error: `Entry index ${entryIdx} out of range (found ${candidates.length})` };
+
+      // Find the Delete button in this specific row
+      const buttons = Array.from(target.querySelectorAll<HTMLButtonElement>('button'));
+      const deleteBtn = buttons.find(b => /delete/i.test(b.textContent ?? ''));
+      if (!deleteBtn) return { error: 'No Delete button found in target entry row' };
+
+      const entryDesc = target.querySelector('.card-header-text')?.textContent?.trim()
+        ?? target.querySelector('.info')?.textContent?.trim()
+        ?? 'unknown';
+      deleteBtn.click();
+      return { clicked: true, payer: header.textContent?.trim(), entryDesc };
+    }, { payerPattern: payerRe.source, typePattern: typeRe ? typeRe.source : null, entryIdx: idx });
+
+    if ('error' in result) {
+      return { success: false, error: 'entry_not_found', message: result.error };
+    }
+
+    // Step 2: Wait for the delete confirmation page
+    await page.waitForLoadState('domcontentloaded', { timeout: 10_000 }).catch(() => {});
+    await waitForPageReady(page);
+
+    const confirmTitle = await getPageTitle(page);
+    if (!/delete/i.test(confirmTitle)) {
+      return { success: false, error: 'unexpected_page', message: `Expected delete confirmation, got: "${confirmTitle}"`, clicked: result };
+    }
+
+    // Step 3: Verify the confirmation shows the right payer before confirming
+    const confirmPayer = await page.evaluate(() => {
+      const rows = Array.from(document.querySelectorAll('td, dd, .payer, p'));
+      return rows.find(el => el.textContent?.trim())?.textContent?.trim();
+    });
+
+    // Step 4: Click "Yes, Delete" to confirm
+    const yesBtn = page.getByRole('button', { name: /yes.*delete|confirm.*delete/i }).first();
+    const yesBtnAlt = page.locator('button:visible').filter({ hasText: /yes/i }).first();
+    const btn = (await yesBtn.count()) > 0 ? yesBtn : yesBtnAlt;
+
+    try {
+      await btn.click({ timeout: 5_000 });
+    } catch {
+      await btn.evaluate((node: HTMLElement) => node.click());
+    }
+
+    await page.waitForLoadState('networkidle', { timeout: 15_000 }).catch(() => {});
+    await waitForPageReady(page);
+
+    const url = page.url();
+    const sid = extractSidFromUrl(url);
+    const title = await getPageTitle(page);
+
+    return filterPII({
+      success: true,
+      deleted: result,
+      confirmPayer,
+      currentPage: title,
+      sid,
+      url,
+    });
+  } finally {
+    release();
+  }
+}
+
 export const screenshotSchema = z.object({
   path: z.string().optional().describe('Output file path (default: /tmp/freetaxusa-screenshot.png)'),
   fullPage: z.coerce.boolean().optional().default(true).describe('Capture full scrollable page (default: true)'),

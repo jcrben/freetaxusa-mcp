@@ -6,7 +6,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 
 import { authenticateSchema, authenticate, submitMfaCodeSchema, submitMfaCode, getSessionStatusSchema, getSessionStatus } from './tools/session.js';
-import { readCurrentPageSchema, readCurrentPage, saveAndContinueSchema, saveAndContinue, navigateSectionSchema, navigateSection, screenshotSchema, screenshot, clickButtonSchema, clickButton, fillFieldSchema, fillField, evaluateJsSchema, evaluateJs } from './tools/page.js';
+import { readCurrentPageSchema, readCurrentPage, saveAndContinueSchema, saveAndContinue, navigateSectionSchema, navigateSection, screenshotSchema, screenshot, clickButtonSchema, clickButton, fillFieldSchema, fillField, evaluateJsSchema, evaluateJs, deleteInvestmentEntrySchema, deleteInvestmentEntry } from './tools/page.js';
 import { fillTaxpayerInfoSchema, fillTaxpayerInfo, fillFilingStatusSchema, fillFilingStatus } from './tools/personal.js';
 import { getTaxSummarySchema, getTaxSummary, getRefundEstimateSchema, getRefundEstimate } from './tools/overview.js';
 import { fillW2IncomeSchema, fillW2Income, fill1099IncomeSchema, fill1099Income } from './tools/income.js';
@@ -84,6 +84,13 @@ export function createServer(): McpServer {
     'Click a button, link, or submit input on the current page by matching visible text.',
     clickButtonSchema.shape,
     wrapHandler(args => clickButton(clickButtonSchema.parse(args))),
+  );
+
+  server.tool(
+    'delete_investment_entry',
+    'Delete a specific investment entry on the Investment & Savings Accounts page by payer name and optional entry type. Safely verifies the confirmation page before deleting.',
+    deleteInvestmentEntrySchema.shape,
+    wrapHandler(args => deleteInvestmentEntry(deleteInvestmentEntrySchema.parse(args))),
   );
 
   server.tool(

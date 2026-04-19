@@ -78,11 +78,46 @@ const PAGE_CONTEXTS: PageContext[] = [
     description: '1099-B stock/investment sales list or review form',
   },
 
-  // ── Income: 1099-R ────────────────────────────────────────────────────────
+  // ── Income: 1099-R workflow ───────────────────────────────────────────────
   {
-    titlePattern: /1099-r|retirement.*distribution/i,
-    tools: ['fill_1099_income', 'fill_field', 'save_and_continue'],
-    description: '1099-R retirement distribution form',
+    titlePattern: /your retirement income/i,
+    tools: ['click_button', 'read_current_page'],
+    description: '1099-R list page — click "Add a 1099-R" to add a new entry, or Edit/Delete existing ones',
+  },
+  {
+    titlePattern: /what type of 1099-r/i,
+    tools: ['fill_field', 'save_and_continue'],
+    description: '1099-R type selection — default "Form 1099-R" is correct; just call save_and_continue',
+  },
+  {
+    titlePattern: /how do you want to enter your 1099-r/i,
+    tools: ['fill_field', 'click_button'],
+    description: '1099-R entry method — fill_field(label="Enter it manually", fieldType="radio", fieldName="entry_method"), then click_button("Continue")',
+  },
+  {
+    titlePattern: /enter the retirement info/i,
+    tools: ['fill_1099_income', 'save_and_continue'],
+    description: '1099-R data entry form — use fill_1099_income with all box values, then save_and_continue',
+  },
+  {
+    titlePattern: /double-check your payer info/i,
+    tools: ['save_and_continue'],
+    description: '1099-R payer confirmation page — verify payer name and EIN match the form, then save_and_continue',
+  },
+  {
+    titlePattern: /did you withdraw any contributions/i,
+    tools: ['fill_field', 'save_and_continue'],
+    description: 'IRA contribution withdrawal question — answer No unless you withdrew the 2025 contribution itself',
+  },
+  {
+    titlePattern: /ira basis and value/i,
+    tools: ['fill_field', 'save_and_continue'],
+    description: 'Form 8606 inputs: prior basis (2024 and earlier), Dec 31 IRA value, and any Jan–Apr contributions for prior year',
+  },
+  {
+    titlePattern: /ira deduction summary/i,
+    tools: ['click_button', 'screenshot'],
+    description: 'IRA deduction summary — review the calculated deduction, then click Continue',
   },
 
   // ── Income: Other 1099s ───────────────────────────────────────────────────

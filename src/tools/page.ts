@@ -290,6 +290,7 @@ export const fillFieldSchema = z.object({
   value: z.string().describe('Value to enter'),
   fieldType: z.enum(['text', 'select', 'radio', 'checkbox']).optional().default('text').describe('Field type (default: text)'),
   checked: z.coerce.boolean().optional().describe('For checkbox: true=check, false=uncheck'),
+  fieldName: z.string().optional().describe('For radio fields: the HTML name attribute (e.g. "is_energy") to disambiguate when multiple radio groups share the same Yes/No labels'),
 });
 
 export async function fillField(input: z.infer<typeof fillFieldSchema>): Promise<Record<string, unknown>> {
@@ -307,7 +308,7 @@ export async function fillField(input: z.infer<typeof fillFieldSchema>): Promise
         filled = await selectByLabel(page, input.label, input.value);
         break;
       case 'radio':
-        filled = await clickRadioByLabel(page, input.label);
+        filled = await clickRadioByLabel(page, input.label, input.fieldName);
         break;
       case 'checkbox':
         filled = await setCheckbox(page, input.label, input.checked ?? input.value === 'true');

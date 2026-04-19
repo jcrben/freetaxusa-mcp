@@ -154,15 +154,50 @@ export async function selectByLabel(page: Page, label: string, optionText: strin
 
 /**
  * Click a radio button by its label text.
+ * If fieldName is provided, scope the search to inputs with that name attribute
+ * (disambiguates when multiple radio groups share the same Yes/No labels).
  */
-export async function clickRadioByLabel(page: Page, label: string): Promise<boolean> {
+export async function clickRadioByLabel(page: Page, label: string, fieldName?: string): Promise<boolean> {
+  // If a field name is given, find the input[name="fieldName"] whose associated
+  // label text matches, then check that specific input directly.
+  if (fieldName) {
+    try {
+      const inputs = page.locator(`input[type="radio"][name="${fieldName}"]`);
+      const count = await inputs.count();
+      for (let i = 0; i < count; i++) {
+        const input = inputs.nth(i);
+        const id = await input.getAttribute('id').catch(() => null);
+        let labelText = '';
+        if (id) {
+          labelText = (await page.locator(`label[for="${id}"]`).textContent().catch(() => '')) ?? '';
+        }
+        if (labelText.toLowerCase().includes(label.toLowerCase())) {
+          await input.check();
+          return true;
+        }
+      }
+      // Fallback: match by value (Y/N convention)
+      const valueMap: Record<string, string> = { yes: 'Y', no: 'N', 'true': 'Y', 'false': 'N' };
+      const mappedValue = valueMap[label.toLowerCase()];
+      if (mappedValue) {
+        const byValue = page.locator(`input[type="radio"][name="${fieldName}"][value="${mappedValue}"]`);
+        if (await byValue.count() > 0) {
+          await byValue.check();
+          return true;
+        }
+      }
+    } catch {
+      // fall through to generic approach
+    }
+  }
+
   try {
-    const radio = page.getByRole('radio', { name: label });
+    const radio = page.getByRole('radio', { name: label, exact: false });
     await radio.check();
     return true;
   } catch {
     try {
-      const labelEl = page.getByText(label, { exact: false });
+      const labelEl = page.getByText(label, { exact: true });
       await labelEl.click();
       return true;
     } catch {

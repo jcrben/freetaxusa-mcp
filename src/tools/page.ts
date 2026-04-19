@@ -239,8 +239,9 @@ export async function clickButton(input: z.infer<typeof clickButtonSchema>): Pro
         });
       }
     } else {
-      // Regular button/link (not a dropdown toggle)
-      const el = page.locator('button:visible, a:visible, input[type="submit"]:visible, input[type="button"]:visible')
+      // Regular button/link (not a dropdown toggle).
+      // Also match <label> elements — styled radio tile selections use labels rather than buttons.
+      const el = page.locator('button:visible, a:visible, input[type="submit"]:visible, input[type="button"]:visible, label:visible')
         .filter({ hasText: textRe })
         .nth(idx);
 

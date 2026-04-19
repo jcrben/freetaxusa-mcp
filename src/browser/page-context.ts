@@ -54,21 +54,49 @@ const PAGE_CONTEXTS: PageContext[] = [
     titlePattern: /investment.*savings.*account/i,
     sids: [18],
     tools: ['click_button', 'read_current_page', 'screenshot'],
-    description: 'Investment & savings accounts list — use click_button to Start/Edit/Review entries',
+    description: 'Investment & savings accounts list — use click_button("Add Investment") to add, or Edit/Delete existing entries',
   },
 
-  // ── Income: 1099-DIV ──────────────────────────────────────────────────────
+  // ── Income: Investment type selection ─────────────────────────────────────
   {
-    titlePattern: /dividend.*1099-div|1099-div.*dividend/i,
-    tools: ['fill_1099_income', 'fill_field', 'save_and_continue'],
-    description: '1099-DIV dividend income form',
+    titlePattern: /what type of investment/i,
+    tools: ['fill_field', 'save_and_continue'],
+    description: 'Investment type selector (radio tiles) — use fill_field(label="Dividends (1099-DIV)", fieldType="radio"), then save_and_continue. Options: "Interest (1099-INT)", "Dividends (1099-DIV)", "Stock Sales (1099-B)", "Crypto, NFT Sales (1099-DA)", "Other Sales"',
   },
 
-  // ── Income: 1099-INT ──────────────────────────────────────────────────────
+  // ── Income: Investment account name ──────────────────────────────────────
   {
-    titlePattern: /interest.*1099-int|1099-int.*interest/i,
-    tools: ['fill_1099_income', 'fill_field', 'save_and_continue'],
-    description: '1099-INT interest income form',
+    titlePattern: /tell us about your investment account/i,
+    tools: ['fill_field', 'save_and_continue'],
+    description: 'Investment account institution name — fill_field(label="Financial Institution", value="PAYER NAME - ACCT#"), then save_and_continue',
+  },
+
+  // ── Income: 1099-DIV entry method ────────────────────────────────────────
+  {
+    titlePattern: /how do you want to enter your 1099-div/i,
+    tools: ['fill_field', 'save_and_continue'],
+    description: '1099-DIV entry method selector — use fill_field(label="Enter it manually", fieldType="radio"), then save_and_continue',
+  },
+
+  // ── Income: 1099-INT entry method ────────────────────────────────────────
+  {
+    titlePattern: /how do you want to enter your 1099-int/i,
+    tools: ['fill_field', 'save_and_continue'],
+    description: '1099-INT entry method selector — use fill_field(label="Enter it manually", fieldType="radio"), then save_and_continue',
+  },
+
+  // ── Income: 1099-DIV entry form ───────────────────────────────────────────
+  {
+    titlePattern: /enter the dividend info|dividend.*1099-div|1099-div.*dividend/i,
+    tools: ['fill_field', 'save_and_continue'],
+    description: '1099-DIV dividend entry form — fill Box 1a (ordinary), Box 1b (qualified), Box 5 (Section 199A), Box 7 (foreign tax paid), then save_and_continue',
+  },
+
+  // ── Income: 1099-INT entry form ───────────────────────────────────────────
+  {
+    titlePattern: /enter the interest info|interest.*1099-int|1099-int.*interest/i,
+    tools: ['fill_field', 'save_and_continue'],
+    description: '1099-INT interest entry form — fill Box 1 (interest), Box 3 (US savings bonds), Box 6 (foreign tax paid), then save_and_continue',
   },
 
   // ── Income: 1099-B stock sales ────────────────────────────────────────────
